@@ -11,11 +11,11 @@ we can easily adapt the depth of the U-Net.
 """
 class ConvNormActiv(nn.Module):
     """  
-    Sequence of a convolutional, a normalization and a activation layer.
+    Sequence of a convolutional, a normalization and an activation layer.
     Inherits from the torch.nn.Module class.
     """
 
-    def __init__(self, in_size, out_size, kernel_size=3, stride=1, padding=1, norm="instance", activ = "relu"):
+    def __init__(self, in_size, out_size, kernel_size=3, stride=1, padding=1, norm="instance", activ="relu"):
         """
         Parameters
         ----------
@@ -68,7 +68,6 @@ class DownConvBlock(nn.Module):
     Image processing block sequencing two ConvNormActiv blocks followed by a Pooling operation.
     Inherits from the torch.nn.Module class.
     """
-
     def __init__(self, in_size, out_size, kernel_size=3, stride=1, padding=1,
                  pooling=None, norm="instance", activ="relu"):
         """
@@ -96,21 +95,26 @@ class DownConvBlock(nn.Module):
         super().__init__()
         
         # combine two ConvNormActiv blocks
-        self.conv = nn.Sequential(ConvNormActiv(in_size,  out_size, kernel_size, stride, padding, norm, activ),
-                                  ConvNormActiv(out_size, out_size, kernel_size, stride, padding, norm, activ))
+        self.conv = nn.Sequential(ConvNormActiv(in_size,  out_size, kernel_size, stride, 
+                                                padding, norm, activ),
+                                  ConvNormActiv(out_size, out_size, kernel_size, stride, 
+                                                padding, norm, activ))
         # define the pooling layer
         if pooling == "max":
             self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         elif pooling == "average":
             self.pool = nn.AvgPool2d(kernel_size=2, stride=2)
+        elif pooling is None:  # if pooling is None do not perform a pooling operation
+            self.pool = None
         else: 
-            if pooling is not None:  # if pooling is None do not perform a pooling operation
-                raise NotImplementedError("Only MaxPooling and AveragePooling are implemented.")
+            raise NotImplementedError("Only MaxPooling and AveragePooling are implemented.")
 
     def forward(self, x):
         """
         Forward pass of the tensor
-        Returns:
+
+        Returns
+        -------
         x: tensor
             result after the conv-norm-activ and the pooling operations
         before_pool: tensor
@@ -135,7 +139,7 @@ class UpConvBlock(nn.Module):
     """
 
     def __init__(self, in_size, out_size, kernel_size=3, stride=1, padding=1, 
-                 merge_mode='concat', up_mode='transpose', norm="instance", activ = "relu"):
+                 merge_mode='concat', up_mode='transpose', norm="instance", activ="relu"):
         """
         Parameters
         ----------
@@ -159,6 +163,7 @@ class UpConvBlock(nn.Module):
                 defines the activation layer type (ReLu)
         """
         super().__init__()
+
         # define the upconvolution operation
         if up_mode == 'transpose':
             self.UpConvBlock = nn.ConvTranspose2d(in_size, out_size, kernel_size=2, stride=2)
@@ -183,15 +188,16 @@ class UpConvBlock(nn.Module):
         self.conv = nn.Sequential(conv1, conv2)
 
     def forward(self, from_down, from_up):
-        """ Paramters
-            ----------
-            from_down: tensor from the encoder pathway
-            from_up: upconvoluted tensor from the decoder pathway
-            
-            Returns
-            -------
-            x: tensor
-                resulting tensor
+        """ 
+        Paramters
+        ----------
+        from_down: tensor from the encoder pathway
+        from_up: upconvoluted tensor from the decoder pathway
+        
+        Returns
+        -------
+        x: tensor
+            resulting tensor
         """
         from_up = self.UpConvBlock(from_up)
 
@@ -251,7 +257,8 @@ class UNet_2D(BaseNetwork):
                          start_channels=start_channels, kernel_size=kernel_size, 
                          merge_mode=merge_mode, up_mode=up_mode, pooling=pooling,
                          norm=norm, activ=activ, init_type=init_type)
-        # Verify that only implemented unconvultion and merging operation types are passed in as arguments
+
+        # Verify that only implemented unconvolution and merging operation types are passed in as arguments
         if up_mode not in ("transpose", "upsample"):
             raise ValueError(f"'{up_mode}' is not a valid option for upsampling."
                             "Only \"transpose\" and \"upsample\" are implemeted.")
@@ -272,15 +279,16 @@ class UNet_2D(BaseNetwork):
             pool = pooling if idx < depth-1 else None
 
             self.down_convs.append(DownConvBlock(ins, outs, kernel_size, 
-                                                pooling=pool, dropout=drop, norm=norm))
+                                                pooling=pool, norm=norm, activ=activ))
 
         # create the decoder pathway and add to the list
         # !! decoding only requires depth-1 blocks !!
         for idx in range(depth-1):
             ins = outs
             outs = ins // 2
-            self.up_convs.append(UpConvBlock(ins, outs,kernel_size, merge_mode=merge_mode, 
-                                            up_mode=up_mode, norm=norm))
+            self.up_convs.append(UpConvBlock(ins, outs, kernel_size, 
+                                            merge_mode=merge_mode, up_mode=up_mode, 
+                                            norm=norm, activ=activ))
 
         # final 1x1 convultion to reduce the channel size to the number of classes
         self.conv_final = nn.Conv2d(start_channels, num_classes, kernel_size=1, padding=0)
@@ -299,12 +307,10 @@ class UNet_2D(BaseNetwork):
         for module in self.down_convs:
             x, before_pool = module(x)
             encoder_outs.append(before_pool)
-            # print("x.shape: ", x.shape, "before_pool.shape: ", before_pool.shape)
 
         for idx, module in enumerate(self.up_convs):
             before_pool = encoder_outs[-(idx+2)]
             x = module(before_pool, x)
-            # print("x.shape: ", x.shape)
 
         x = self.conv_final(x)
         return x
@@ -313,7 +319,9 @@ class UNet_2D(BaseNetwork):
         """
         Handles the predictions made by the model, calcutes the loss and the different metrics and 
         performs the optimizer step.
-        Paramters:
+
+        Paramters
+        ---------
         criterion: class
             Function or class to calculate the loss value
         optimizer: class
