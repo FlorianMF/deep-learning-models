@@ -8,3 +8,6 @@ The UNet2d is directly taken from the paper by Ronneberger et al. 2015. One can 
 
 The UNet2d_Dilated is a variation of this U-Net using dilation at the end of each depth level in the encoder. The dilation rates can be adapted via the argument "dilation_vals"
 ![UNet](UNet_Dilated.jpg)
+
+The VNet2d is a created according to the paper. In contrast to the U-Net the number of blocks (convolution + normalization + activation) on each depth level does vary. Furthermore the V-Net makes use of residual connections at which encapsulate an entire depth level. Instead of using pooling layers the dimensional reduction is performed via the standard convolution with zero padding.
+![VNet](VNet.png)
