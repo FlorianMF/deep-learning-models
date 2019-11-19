@@ -1,5 +1,5 @@
 # deep-learning-models
-Little collection of deep learning models which I used for my master thesis of semantic segmentation.
+Little collection of deep learning models which I used for my master thesis on semantic segmentation of bones and cartilage in the human knee in MRI images.
 
 All models should inherit from the "BaseNetwork". This network has abstract methods for the forward pass and the closure. Moreover it has a staticmethod used to initialize the model's parameters.
 
